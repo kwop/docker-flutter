@@ -1,0 +1,50 @@
+name: Docker Hub description
+
+# Publishes README.md as the Docker Hub repository overview, through the two
+# Docker Hub API calls that peter-evans/dockerhub-description makes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - .github/workflows/dockerhub-description.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  REPOSITORY: kwop/flutter
+  DOCKERHUB_USERNAME: kwop
+  # Limited to 100 bytes.
+  SHORT_DESCRIPTION: Flutter SDK + Android SDK for CI, amd64/arm64. Successor of cirruslabs/flutter.
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Update Docker Hub description
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          token=$(jq -n --arg id "$DOCKERHUB_USERNAME" --arg secret "$DOCKERHUB_TOKEN" '{identifier: $id, secret: $secret}' \
+            | curl -sS --fail-with-body -H 'Content-Type: application/json' -d @- https://hub.docker.com/v2/auth/token \
+            | jq -r '.access_token')
+          echo "::add-mask::$token"
+
+          jq -n --rawfile readme README.md --arg short "$SHORT_DESCRIPTION" '{full_description: $readme, description: $short}' \
+            | curl -sS --fail-with-body -o /dev/null -X PATCH \
+                -H 'Content-Type: application/json' \
+                -H "Authorization: Bearer $token" \
+                -d @- "https://hub.docker.com/v2/repositories/${REPOSITORY}/"
+          echo "Updated https://hub.docker.com/r/${REPOSITORY}"

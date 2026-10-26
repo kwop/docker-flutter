@@ -7,7 +7,7 @@ Flutter SDK and Android SDK in one image, for CI and local builds. Successor of
 [`cirruslabs/docker-images-flutter`](https://github.com/cirruslabs/docker-images-flutter),
 which stopped updating in May 2026.
 
-Docker Hub: [`kwop/flutter`](https://hub.docker.com/r/kwop/flutter)
+Docker Hub: [`kwop/flutter`](https://hub.docker.com/r/kwop/flutter) · Source: [`kwop/docker-flutter`](https://github.com/kwop/docker-flutter)
 
 ## Usage
 
@@ -28,8 +28,7 @@ Paths and environment variables are unchanged (`FLUTTER_HOME=/sdks/flutter`,
 
 Only the stable channel is published. Images are built for `linux/amd64` and `linux/arm64`.
 
-> [!NOTE]
-> Google ships `adb` and the AAPT2 binary that Gradle downloads for x86-64 Linux only.
+> **Note:** Google ships `adb` and the AAPT2 binary that Gradle downloads for x86-64 Linux only.
 > The arm64 image runs `flutter test`, `flutter analyze` and web builds, but Android
 > builds (`flutter build apk`/`appbundle`) need the amd64 image. On Apple Silicon, use
 > `--platform linux/amd64`.
@@ -63,14 +62,16 @@ docker buildx imagetools inspect kwop/flutter:stable --format '{{ json .SBOM }}'
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
-| [`check-flutter-version.yml`](.github/workflows/check-flutter-version.yml) | every hour | Writes the current stable release to [`FLUTTER_VERSION`](FLUTTER_VERSION). If it changed, commits it and runs the build. |
-| [`build-and-push.yml`](.github/workflows/build-and-push.yml) | push to `FLUTTER_VERSION`/`Dockerfile`, Monday 05:00 UTC, manual | Builds amd64 and arm64 on native runners, then pushes the multi-arch manifest to Docker Hub. |
+| [`check-flutter-version.yml`](https://github.com/kwop/docker-flutter/blob/main/.github/workflows/check-flutter-version.yml) | every hour | Writes the current stable release to [`FLUTTER_VERSION`](https://github.com/kwop/docker-flutter/blob/main/FLUTTER_VERSION). If it changed, commits it and runs the build. |
+| [`build-and-push.yml`](https://github.com/kwop/docker-flutter/blob/main/.github/workflows/build-and-push.yml) | push to `FLUTTER_VERSION`/`Dockerfile`, Monday 05:00 UTC, manual | Builds amd64 and arm64 on native runners, then pushes the multi-arch manifest to Docker Hub. |
+| [`dockerhub-description.yml`](https://github.com/kwop/docker-flutter/blob/main/.github/workflows/dockerhub-description.yml) | push to `README.md`, manual | Publishes this README as the Docker Hub overview. |
 
 To pin a version, edit `FLUTTER_VERSION` and push to `main`. The next hourly check
 moves it back to the latest stable release.
 
 Setup: the repository secret `DOCKERHUB_TOKEN` holds a Docker Hub personal access
-token with *Read & Write* scope for `kwop`.
+token for `kwop` with *Read, Write & Delete* scope. Pushing images needs *Read & Write*;
+the Docker Hub API also requires *Delete* to update the overview.
 
 Build locally:
 
@@ -80,7 +81,7 @@ docker build --build-arg flutter_version="$(cat FLUTTER_VERSION)" -t kwop/flutte
 
 ## License
 
-[MIT](LICENSE). Based on the work of Cirrus Labs
+[MIT](https://github.com/kwop/docker-flutter/blob/main/LICENSE). Based on the work of Cirrus Labs
 ([docker-images-flutter](https://github.com/cirruslabs/docker-images-flutter),
 [docker-images-android](https://github.com/cirruslabs/docker-images-android)) and
 [Adrian Jagielak](https://github.com/adrianjagielak/docker-images-flutter).
