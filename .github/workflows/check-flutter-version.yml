@@ -1,0 +1,61 @@
+name: Check Flutter version
+
+# Polls the Flutter release index every hour. When a new stable release is
+# out, commits it to FLUTTER_VERSION and builds the image.
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-flutter-version
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Update FLUTTER_VERSION
+        run: bash scripts/update-flutter-version.sh
+
+      - name: Commit and push if changed
+        id: commit
+        run: |
+          if git diff --quiet -- FLUTTER_VERSION; then
+            echo "No new Flutter stable release."
+            echo "changed=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add FLUTTER_VERSION
+          git commit -m "chore: update Flutter to $(cat FLUTTER_VERSION)"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+          echo "changed=true" >>"$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+
+  # Pushes made with GITHUB_TOKEN do not trigger other workflows, so the build
+  # is called from here, on the commit that was just pushed.
+  build:
+    needs: check
+    if: needs.check.outputs.changed == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build-and-push.yml
+    with:
+      ref: ${{ needs.check.outputs.sha }}
+    secrets: inherit
